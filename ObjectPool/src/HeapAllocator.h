@@ -8,12 +8,16 @@
 template<typename T, int N>
 class HeapAllocator : public Allocator<T>
 {
-public:
+private:
     enum STATE
     {
         STATE_USED = 0,
         STATE_FREE = 1
     };
+    unsigned char data_[sizeof(T) * N];
+    int availble_ = N;
+
+public:
     struct Entry
     {
         STATE state;
@@ -24,6 +28,9 @@ public:
             return state < other.state;
         }
     };
+private:
+    Entry entry[N];
+public:
     HeapAllocator()
     {
         for(int i = 0; i < N; ++i)
@@ -34,6 +41,8 @@ public:
         std::make_heap(entry, entry + N);
     }
     ~HeapAllocator() = default;
+
+public:
     virtual T * allocate()
     {
         if(availble_ <= 0)
@@ -58,8 +67,4 @@ public:
         ++availble_;
         std::push_heap(entry, entry + N);
     }
-private:
-    unsigned char data_[sizeof(T) * N];
-    Entry entry[N];
-    int availble_ = N;
 };

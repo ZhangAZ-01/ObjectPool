@@ -6,6 +6,8 @@ class Allocator
 {
 public:
     Allocator() = default;
+
+public:
     virtual T * allocate() = 0;
     virtual void deallocate(T * p) = 0;
 };
