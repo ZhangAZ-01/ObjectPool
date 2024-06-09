@@ -1,13 +1,11 @@
 #pragma once
 
 // Allocates and deallocates objects of type T.
-template<typename T>
-class Allocator
-{
+template <typename T> class Allocator {
 public:
-    Allocator() = default;
+  Allocator() = default;
 
 public:
-    virtual T * allocate() = 0;
-    virtual void deallocate(T * p) = 0;
+  virtual T *allocate() = 0;
+  virtual void deallocate(T *p) = 0;
 };
