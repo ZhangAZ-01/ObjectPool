@@ -1,3 +1,7 @@
+# Copyright 2024 Vipshop Inc. All Rights Reserved.
+# Author: Aizhen Zhang (869723386@qq.com)
+#
+
 *.exe
 *.o
 .vscode/

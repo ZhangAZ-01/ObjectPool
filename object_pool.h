@@ -29,8 +29,8 @@ private:
 public:
   bool init(size_t max_size);
   bool init(size_t max_size, const creator_type &creator);
-  smarter_pointer get();
-  shared_pointer get_shared();
+  typename object_pool<T>::smarter_pointer get();
+  typename object_pool<T>::shared_pointer get_shared();
   void release(pointer ptr);
 
 private:
@@ -62,7 +62,7 @@ bool object_pool<T>::init(size_t max_size, const creator_type &creator) {
   }
   return true;
 }
-template <typename T> object_pool<T>::smarter_pointer object_pool<T>::get() {
+template <typename T> typename object_pool<T>::smarter_pointer object_pool<T>::get() {
   if (!pool_.empty()) {
     pointer obj = pool_.back();
     pool_.pop_back();
@@ -72,7 +72,7 @@ template <typename T> object_pool<T>::smarter_pointer object_pool<T>::get() {
   }
 }
 template <typename T>
-object_pool<T>::shared_pointer object_pool<T>::get_shared() {
+typename object_pool<T>::shared_pointer object_pool<T>::get_shared() {
   if (!pool_.empty()) {
     pointer obj = pool_.back();
     pool_.pop_back();
