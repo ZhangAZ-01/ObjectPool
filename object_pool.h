@@ -6,8 +6,10 @@
 #include <functional>
 #include <memory>
 #include <stddef.h>
+#include <vector>
 
 namespace object_pool {
+
 template <typename T> class object_pool {
 public:
   using value_type = T;
@@ -19,6 +21,7 @@ public:
 
 public:
   object_pool() = default;
+  ~object_pool() { release_all(); }
 
 private:
   object_pool(const object_pool &) = delete;
@@ -27,42 +30,44 @@ private:
   object_pool &operator=(object_pool &&) = delete;
 
 public:
-  bool init(size_t max_size);
-  bool init(size_t max_size, const creator_type &creator);
-  typename object_pool<T>::smarter_pointer get();
-  typename object_pool<T>::shared_pointer get_shared();
-  void release(pointer ptr);
+  [[nodiscard]] bool init(size_t max_size);
+  [[nodiscard]] bool init(size_t max_size, const creator_type &creator,
+                          const deleter_type &deleter = nullptr);
+  [[nodiscard]] smarter_pointer get();
+  [[nodiscard]] shared_pointer get_shared();
 
 private:
-  size_t max_size_;
+  void release(pointer ptr);
+  void release_all();
+
+private:
+  size_t max_size_ = 0;
   std::vector<pointer> pool_;
   creator_type creator_;
   deleter_type deleter_;
 };
+
 template <typename T> bool object_pool<T>::init(size_t max_size) {
-  if (max_size == 0)
-    return false;
-  max_size_ = max_size;
-  creator_ = []() { return new value_type(); };
-  deleter_ = [this](pointer ptr) { this->release(ptr); };
-  for (size_t i = 0; i < max_size_; ++i) {
-    pool_.push_back(creator_());
-  }
-  return true;
+  return init(
+      max_size, []() { return new value_type(); },
+      [](pointer ptr) { return delete ptr; });
 }
+
 template <typename T>
-bool object_pool<T>::init(size_t max_size, const creator_type &creator) {
-  if (max_size == 0 || creator == nullptr)
-    return false;
+bool object_pool<T>::init(size_t max_size, const creator_type &creator,
+                          const deleter_type &deleter) {
+  release_all();
   max_size_ = max_size;
   creator_ = creator;
-  deleter_ = [this](pointer ptr) { this->release(ptr); };
+  deleter_ = deleter ? deleter : [](pointer ptr) { delete ptr; };
+  pool_.reserve(max_size_);
   for (size_t i = 0; i < max_size_; ++i) {
-    pool_.push_back(creator_());
+    pool_.emplace_back(creator_());
   }
   return true;
 }
-template <typename T> typename object_pool<T>::smarter_pointer object_pool<T>::get() {
+
+template <typename T> auto object_pool<T>::get() -> smarter_pointer {
   if (!pool_.empty()) {
     pointer obj = pool_.back();
     pool_.pop_back();
@@ -71,8 +76,8 @@ template <typename T> typename object_pool<T>::smarter_pointer object_pool<T>::g
     return smarter_pointer(creator_(), deleter_);
   }
 }
-template <typename T>
-typename object_pool<T>::shared_pointer object_pool<T>::get_shared() {
+
+template <typename T> auto object_pool<T>::get_shared() -> shared_pointer {
   if (!pool_.empty()) {
     pointer obj = pool_.back();
     pool_.pop_back();
@@ -81,11 +86,19 @@ typename object_pool<T>::shared_pointer object_pool<T>::get_shared() {
     return shared_pointer(creator_(), deleter_);
   }
 }
+
 template <typename T> void object_pool<T>::release(pointer ptr) {
   if (pool_.size() < max_size_) {
-    pool_.push_back(ptr);
+    pool_.emplace_back(ptr);
   } else {
-    delete ptr;
+    deleter_(ptr);
   }
+}
+
+template <typename T> void object_pool<T>::release_all() {
+  for (auto ptr : pool_) {
+    deleter_(ptr);
+  }
+  pool_.clear();
 }
 } // namespace object_pool
