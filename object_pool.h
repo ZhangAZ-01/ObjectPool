@@ -1,12 +1,14 @@
 // Copyright 2024 Vipshop Inc. All Rights Reserved.
 // Author: Aizhen Zhang (869723386@qq.com)
 //
+
 #pragma once
 
 #include <functional>
 #include <memory>
 #include <stddef.h>
 #include <vector>
+
 
 namespace object_pool {
 
@@ -42,15 +44,13 @@ private:
 
 private:
   size_t max_size_ = 0;
-  std::vector<pointer> pool_;
   creator_type creator_;
   deleter_type deleter_;
+  std::vector<pointer> pool_;
 };
 
 template <typename T> bool object_pool<T>::init(size_t max_size) {
-  return init(
-      max_size, []() { return new value_type(); },
-      [](pointer ptr) { return delete ptr; });
+  return init(max_size, []() { return new value_type(); });
 }
 
 template <typename T>
@@ -60,7 +60,6 @@ bool object_pool<T>::init(size_t max_size, const creator_type &creator,
   max_size_ = max_size;
   creator_ = creator;
   deleter_ = deleter ? deleter : [](pointer ptr) { delete ptr; };
-
   pool_.reserve(max_size_);
   for (size_t i = 0; i < max_size_; ++i) {
     pool_.emplace_back(creator_());
@@ -70,21 +69,21 @@ bool object_pool<T>::init(size_t max_size, const creator_type &creator,
 
 template <typename T> auto object_pool<T>::get() -> smarter_pointer {
   if (!pool_.empty()) {
-    pointer obj = pool_.back();
+    pointer ptr = pool_.back();
     pool_.pop_back();
-    return smarter_pointer(obj, [this](pointer ptr) { this->release(ptr); });
+    return smarter_pointer(ptr, [this](pointer ptr) { release(ptr); });
   } else {
-    return smarter_pointer(creator_(), deleter_);
+    return smarter_pointer(creator_(), [this](pointer ptr) { release(ptr); });
   }
 }
 
 template <typename T> auto object_pool<T>::get_shared() -> shared_pointer {
   if (!pool_.empty()) {
-    pointer obj = pool_.back();
+    pointer ptr = pool_.back();
     pool_.pop_back();
-    return shared_pointer(obj, deleter_);
+    return shared_pointer(ptr, [this](pointer ptr) { release(ptr); });
   } else {
-    return shared_pointer(creator_(), deleter_);
+    return shared_pointer(creator_(), [this](pointer ptr) { release(ptr); });
   }
 }
 
@@ -97,7 +96,7 @@ template <typename T> void object_pool<T>::release(pointer ptr) {
 }
 
 template <typename T> void object_pool<T>::release_all() {
-  for (auto ptr : pool_) {
+  for (pointer ptr : pool_) {
     deleter_(ptr);
   }
   pool_.clear();
