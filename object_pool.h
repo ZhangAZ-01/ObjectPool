@@ -60,6 +60,7 @@ bool object_pool<T>::init(size_t max_size, const creator_type &creator,
   max_size_ = max_size;
   creator_ = creator;
   deleter_ = deleter ? deleter : [](pointer ptr) { delete ptr; };
+
   pool_.reserve(max_size_);
   for (size_t i = 0; i < max_size_; ++i) {
     pool_.emplace_back(creator_());
@@ -71,7 +72,7 @@ template <typename T> auto object_pool<T>::get() -> smarter_pointer {
   if (!pool_.empty()) {
     pointer obj = pool_.back();
     pool_.pop_back();
-    return smarter_pointer(obj, deleter_);
+    return smarter_pointer(obj, [this](pointer ptr) { this->release(ptr); });
   } else {
     return smarter_pointer(creator_(), deleter_);
   }
@@ -101,4 +102,5 @@ template <typename T> void object_pool<T>::release_all() {
   }
   pool_.clear();
 }
+
 } // namespace object_pool
