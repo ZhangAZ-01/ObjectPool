@@ -19,15 +19,9 @@ class test_object {
   static int construct_count;
   static int destruct_count;
 
- private:
-  int id_;
-
  public:
   test_object() { ++construct_count; }
   ~test_object() { ++destruct_count; }
-
- public:
-  int get_id() const { return id_; }
 };
 
 int test_object::construct_count = 0;
@@ -35,41 +29,34 @@ int test_object::destruct_count = 0;
 
 void test_object_reuse() {
   object_pool<test_object> pool;
-  EXPECT_TRUE(pool.init(2), "Initialization failed.");
-  int id1 = 0;
-  int id2 = 0;
+  EXPECT_TRUE(pool.init(3), "Initialization failed.");
 
-  {
-    auto ptr1 = pool.get();
-    id1 = ptr1->get_id();
-    ptr1.reset();
-  }
-  {
-    auto ptr2 = pool.get();
-    id2 = ptr2->get_id();
-    ptr2.reset();
-    EXPECT_TRUE(id1 == id2, "Dismatch");
-  }
-}
+  auto obj1 = pool.get();
+  auto obj2 = pool.get();
+  auto obj3 = pool.get();
 
-void test_init_multiple_times() {
-  object_pool<test_object> pool;
-  size_t sizes[] = {2, 4, 8};
-  for (size_t i = 0; i < 3; ++i) {
-    EXPECT_TRUE(pool.init(sizes[i]), "Init failed.");
-    for (size_t j = 0; j < sizes[i]; ++j) {
-      auto ptr = pool.get();
-      EXPECT_TRUE(ptr != nullptr,
-                  "Get failed: size " + std::to_string(sizes[i]) + ", attempt " + std::to_string(j + 1));
-      ptr.reset();
-    }
-  }
+  EXPECT_TRUE(test_object::construct_count == 3, "Construct count is not 3.");
+
+  obj1.reset();
+
+  auto obj4 = pool.get();
+  EXPECT_TRUE(test_object::construct_count == 3, "Construct count is not still 3.");
+
+  obj2.reset();
+  obj3.reset();
+  obj4.reset();
+
+  EXPECT_TRUE(test_object::destruct_count == 0, "Destruct count is not 0.");
+
+  EXPECT_TRUE(pool.init(3), "Initialization failed.");
+
+  EXPECT_TRUE(test_object::destruct_count == 3, "Destruct count after re-initialization error.");
+  EXPECT_TRUE(test_object::construct_count == 6, "Construct count after re-initialization error.");
 }
 
 }  // namespace object_pool
 
 int main() {
   object_pool::test_object_reuse();
-  object_pool::test_init_multiple_times();
   return 0;
 }
