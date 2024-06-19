@@ -8,49 +8,68 @@
 
 namespace object_pool {
 
-#define EXPECT_TRUE(cond, msg)                                                 \
-  if (!(cond)) {                                                               \
-    std::cerr << msg << std::endl;                                             \
-    assert(cond);                                                              \
+#define EXPECT_TRUE(cond, msg)     \
+  if (!(cond)) {                   \
+    std::cerr << msg << std::endl; \
+    assert(cond);                  \
   }
 
 class test_object {
-public:
+ public:
   static int construct_count;
   static int destruct_count;
-  int id;
 
-public:
-  test_object() : id(construct_count){
-    ++construct_count;
-  }
+ private:
+  int id_;
 
-  ~test_object() {
-    ++destruct_count;
-  }
+ public:
+  test_object() { ++construct_count; }
+  ~test_object() { ++destruct_count; }
+
+ public:
+  int get_id() const { return id_; }
 };
 
 int test_object::construct_count = 0;
 int test_object::destruct_count = 0;
 
-void test_object_reuse(){
+void test_object_reuse() {
   object_pool<test_object> pool;
   EXPECT_TRUE(pool.init(2), "Initialization failed.");
+  int id1 = 0;
+  int id2 = 0;
 
-  auto obj1 = pool.get();
-  int id1 = obj1->id;
-  obj1.reset();
-
-  auto obj2 = pool.get();
-  int id2 = obj2->id;
-  EXPECT_TRUE(id1 == id2, "Object ID mismatch.");
-
-  obj2.reset();
+  {
+    auto ptr1 = pool.get();
+    id1 = ptr1->get_id();
+    ptr1.reset();
+  }
+  {
+    auto ptr2 = pool.get();
+    id2 = ptr2->get_id();
+    ptr2.reset();
+    EXPECT_TRUE(id1 == id2, "Dismatch");
+  }
 }
 
-} // namespace object_pool
+void test_init_multiple_times() {
+  object_pool<test_object> pool;
+  size_t sizes[] = {2, 4, 8};
+  for (size_t i = 0; i < 3; ++i) {
+    EXPECT_TRUE(pool.init(sizes[i]), "Init failed.");
+    for (size_t j = 0; j < sizes[i]; ++j) {
+      auto ptr = pool.get();
+      EXPECT_TRUE(ptr != nullptr,
+                  "Get failed: size " + std::to_string(sizes[i]) + ", attempt " + std::to_string(j + 1));
+      ptr.reset();
+    }
+  }
+}
+
+}  // namespace object_pool
 
 int main() {
   object_pool::test_object_reuse();
+  object_pool::test_init_multiple_times();
   return 0;
 }
