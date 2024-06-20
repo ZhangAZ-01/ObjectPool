@@ -32,8 +32,8 @@ class object_pool {
   object_pool& operator=(object_pool&&) = delete;
 
  public:
-  [[nodiscard]] bool init(size_t max_size);
-  [[nodiscard]] bool init(size_t max_size, const creator_type& creator, const deleter_type& deleter = nullptr);
+  void init(size_t max_size);
+  void init(size_t max_size, const creator_type& creator, const deleter_type& deleter = nullptr);
   [[nodiscard]] smarter_pointer get();
   [[nodiscard]] shared_pointer get_shared();
 
@@ -49,12 +49,12 @@ class object_pool {
 };
 
 template <typename T>
-bool object_pool<T>::init(size_t max_size) {
+void object_pool<T>::init(size_t max_size) {
   return init(max_size, []() { return new value_type(); });
 }
 
 template <typename T>
-bool object_pool<T>::init(size_t max_size, const creator_type& creator, const deleter_type& deleter) {
+void object_pool<T>::init(size_t max_size, const creator_type& creator, const deleter_type& deleter) {
   release_all();
   max_size_ = max_size;
   creator_ = creator;
@@ -63,7 +63,6 @@ bool object_pool<T>::init(size_t max_size, const creator_type& creator, const de
   for (size_t i = 0; i < max_size_; ++i) {
     pool_.emplace_back(creator_());
   }
-  return true;
 }
 
 template <typename T>
