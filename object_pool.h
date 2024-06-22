@@ -36,6 +36,7 @@ class object_pool {
   void init(size_t max_size, const creator_type& creator, const deleter_type& deleter = nullptr);
   [[nodiscard]] smarter_pointer get();
   [[nodiscard]] shared_pointer get_shared();
+  [[nodiscard]] size_t size() const;
 
  private:
   void release(pointer ptr);
@@ -85,6 +86,11 @@ auto object_pool<T>::get_shared() -> shared_pointer {
   } else {
     return shared_pointer(creator_(), [this](pointer ptr) { release(ptr); });
   }
+}
+
+template <typename T>
+auto object_pool<T>::size() const -> size_t {
+  return pool_.size();
 }
 
 template <typename T>
