@@ -3,9 +3,9 @@
 #
 
 CXX := g++
-CPPFLAGS := -DNDEBUG=1
+CPPFLAGS := -DNDEBUG=1 -I./gtest/googletest/googletest/include
 CXXFLAGS := -g -O3 -std=c++17 -Wall -Wextra -Werror -pedantic
-LDFLAGS :=
+LDFLAGS := -L./gtest/googletest/build/lib -lgtest -lgtest_main
 
 all: object_pool_test object_pool_test.o
 .PHONY: all
