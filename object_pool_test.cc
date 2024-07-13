@@ -5,58 +5,94 @@
 #include "object_pool.h"
 #include <assert.h>
 #include <iostream>
+#include "gtest/gtest.h"
 
 namespace object_pool {
 
-#define EXPECT_TRUE(cond, msg)     \
-  if (!(cond)) {                   \
-    std::cerr << msg << std::endl; \
-    assert(cond);                  \
-  }
-
 class test_object {
  public:
-  static int construct_count;
-  static int destruct_count;
+  static size_t construct_count;
+  static size_t destruct_count;
 
  public:
   test_object() { ++construct_count; }
   ~test_object() { ++destruct_count; }
 };
 
-int test_object::construct_count = 0;
-int test_object::destruct_count = 0;
+size_t test_object::construct_count = 0;
+size_t test_object::destruct_count = 0;
 
-void test_object_reuse() {
+class object_pool_test : public ::testing::Test {
+ protected:
   object_pool<test_object> pool;
-  EXPECT_TRUE(pool.init(3), "Initialization failed.");
 
-  auto obj1 = pool.get();
-  auto obj2 = pool.get();
-  auto obj3 = pool.get();
+ protected:
+  void SetUp() override {
+    test_object::construct_count = 0;
+    test_object::destruct_count = 0;
+    pool.init(3);
+  }
+};
 
-  EXPECT_TRUE(test_object::construct_count == 3, "Construct count is not 3.");
+TEST_F(object_pool_test, test_get) {
+  EXPECT_EQ(test_object::construct_count, 3u);
 
-  obj1.reset();
+  auto ptr1 = pool.get();
+  auto ptr2 = pool.get();
+  auto ptr3 = pool.get();
 
-  auto obj4 = pool.get();
-  EXPECT_TRUE(test_object::construct_count == 3, "Construct count is not still 3.");
+  EXPECT_EQ(test_object::construct_count, 3u);
 
-  obj2.reset();
-  obj3.reset();
-  obj4.reset();
+  ptr1.reset();
+  auto ptr4 = pool.get();
 
-  EXPECT_TRUE(test_object::destruct_count == 0, "Destruct count is not 0.");
+  EXPECT_EQ(test_object::construct_count, 3u);
 
-  EXPECT_TRUE(pool.init(3), "Initialization failed.");
+  ptr2.reset();
+  ptr3.reset();
+  ptr4.reset();
 
-  EXPECT_TRUE(test_object::destruct_count == 3, "Destruct count after re-initialization error.");
-  EXPECT_TRUE(test_object::construct_count == 6, "Construct count after re-initialization error.");
+  EXPECT_EQ(test_object::destruct_count, 0u);
+
+  pool.init(3);
+
+  EXPECT_EQ(test_object::destruct_count, 3u);
+  EXPECT_EQ(test_object::construct_count, 6u);
+}
+
+TEST_F(object_pool_test, test_get_shared) {
+  EXPECT_EQ(test_object::construct_count, 3u);
+
+  auto shared_ptr1 = pool.get_shared();
+  auto shared_ptr2 = pool.get_shared();
+  auto shared_ptr3 = pool.get_shared();
+
+  EXPECT_EQ(test_object::construct_count, 3u);
+
+  {
+    auto shared_ptr4 = pool.get_shared();
+    auto shared_ptr5 = pool.get_shared();
+    EXPECT_EQ(test_object::construct_count, 5u);
+  }
+
+  EXPECT_EQ(static_cast<size_t>(pool.size()), 2u);
+
+  shared_ptr1.reset();
+  EXPECT_EQ(static_cast<size_t>(pool.size()), 3u);
+
+  auto shared_ptr6 = pool.get_shared();
+  EXPECT_EQ(test_object::construct_count, 5u);
+
+  shared_ptr2.reset();
+  shared_ptr3.reset();
+  shared_ptr6.reset();
+
+  EXPECT_EQ(test_object::destruct_count, 2u);
 }
 
 }  // namespace object_pool
 
 int main() {
-  object_pool::test_object_reuse();
-  return 0;
+  ::testing::InitGoogleTest();
+  return RUN_ALL_TESTS();
 }
